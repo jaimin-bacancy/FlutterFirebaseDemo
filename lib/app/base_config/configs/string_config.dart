@@ -33,6 +33,7 @@ abstract class StringConfig {
   static const String invalidCredentials = "Invalid Credentials";
   static const String theAccountAlreadyExistsForThatEmail =
       "The account already exists for that email.";
+  static const String invalidEmail = "Invalid Email";
   static const String somethingWantWrong = "Something want wrong";
   static const String userNotFound = "User not found";
   static const String userDisabled = "User disabled";

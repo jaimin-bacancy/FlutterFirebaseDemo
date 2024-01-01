@@ -40,7 +40,7 @@ class _RegisterFormState extends State<RegisterForm> {
       CommonMethods.showToast(
           context, Validation.validatePassword(_password) ?? "");
     } else {
-      AuthService(context).registerUser(_email, _password);
+      AuthService(context).registerUser(_name, _email, _password);
     }
   }
 

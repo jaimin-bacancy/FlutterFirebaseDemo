@@ -1,3 +1,4 @@
+import 'package:firebase_demo/app/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,6 +16,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text("Dashboard")));
+    return Scaffold(
+        body: Center(
+            child: GestureDetector(
+                onTap: () {
+                  AuthService(context).logout();
+                },
+                child: const Text("Dashboard"))));
   }
 }
