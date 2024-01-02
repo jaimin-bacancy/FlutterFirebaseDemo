@@ -11,12 +11,17 @@ class UserService {
 
   UserService(this.context);
 
+  Future<bool> checkAlreadyExist(String uid) async {
+    final docRef = _db.collection(FirebaseConfig.db_users).doc(uid);
+    final snapshot = await docRef.get();
+    return snapshot.exists;
+  }
+
   Future<bool> createUser(
     String uid,
     String name,
     String email,
   ) async {
-    print(email);
     // Create a new user with a name, email and uid
     final user = <String, dynamic>{
       "uid": uid,

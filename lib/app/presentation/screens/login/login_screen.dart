@@ -104,7 +104,9 @@ class _LoginFormState extends State<LoginForm> {
 class SocialAuth extends StatelessWidget {
   const SocialAuth({super.key});
 
-  void onGooglePress(BuildContext context) async {}
+  void onGooglePress(BuildContext context) async {
+    AuthService(context).signInWithGoogle();
+  }
 
   void onFacebookPress(BuildContext context) {
     print("Facebook");

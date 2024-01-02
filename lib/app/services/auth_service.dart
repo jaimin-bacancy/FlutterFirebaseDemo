@@ -3,10 +3,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_demo/app/base_config/configs/string_config.dart';
 import 'package:firebase_demo/app/presentation/screens/home/home_screen.dart';
-import 'package:firebase_demo/app/presentation/screens/startup/startup_screen.dart';
 import 'package:firebase_demo/app/services/user_service.dart';
 import 'package:firebase_demo/app/utils/common_methods.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -18,6 +18,52 @@ class AuthService {
 
   Future<String?> getCurrentUID() async {
     return _firebaseAuth.currentUser?.uid;
+  }
+
+  void signInWithGoogle() async {
+    try {
+      GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication? googleAuth =
+          await googleUser?.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth?.accessToken,
+        idToken: googleAuth?.idToken,
+      );
+
+      // Once signed in, return the UserCredential
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
+      User? user = userCredential.user;
+
+      if (user != null) {
+        UserService(context).checkAlreadyExist(user.uid).then((ifExist) {
+          if (ifExist) {
+            CommonMethods.resetToStartUp(context);
+          } else {
+            UserService(context)
+                .createUser(user.uid, user.displayName ?? "", user.email!)
+                .then((isCreated) {
+              if (isCreated) {
+                CommonMethods.resetToStartUp(context);
+              } else {
+                CommonMethods.showToast(
+                    context, StringConfig.somethingWantWrong);
+              }
+            });
+          }
+        });
+      } else {
+        CommonMethods.showToast(context, StringConfig.somethingWantWrong);
+      }
+    } catch (e) {
+      CommonMethods.showToast(context, StringConfig.somethingWantWrong);
+    }
   }
 
   void signInWithEmail(String email, String password) async {
@@ -60,12 +106,7 @@ class AuthService {
             .createUser(user.uid, name, user.email!)
             .then((isCreated) {
           if (isCreated) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const StartupScreen(),
-              ),
-            );
+            CommonMethods.resetToStartUp(context);
           } else {
             CommonMethods.showToast(context, StringConfig.somethingWantWrong);
           }
@@ -87,12 +128,7 @@ class AuthService {
 
   void logout() {
     _firebaseAuth.signOut().then((value) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const StartupScreen(),
-        ),
-      );
+      CommonMethods.resetToStartUp(context);
     }).catchError((e) {
       CommonMethods.showToast(context, StringConfig.somethingWantWrong);
     });

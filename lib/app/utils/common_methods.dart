@@ -1,3 +1,4 @@
+import 'package:firebase_demo/app/presentation/screens/startup/startup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -33,5 +34,14 @@ class CommonMethods {
     } catch (e) {
       throw Exception("Invalid date format.");
     }
+  }
+
+  static resetToStartUp(BuildContext context) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const StartupScreen(),
+      ),
+    );
   }
 }

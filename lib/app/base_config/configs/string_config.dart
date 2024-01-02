@@ -16,6 +16,10 @@ abstract class StringConfig {
   static const String enterNameText = 'Enter name';
   static const String alreadyUserText = "Already a user? ";
 
+  //Users Screen
+  static const String usersText = 'Users';
+  static const String searchUserText = "Search user...";
+
   // Field validations
   static const String fieldCannotBeEmpty = 'This field cann\'t be empty';
   static const String pleaseEnterPassword = 'Please enter password';
