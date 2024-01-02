@@ -1,6 +1,9 @@
 import 'package:firebase_demo/app/base_config/configs/string_config.dart';
 import 'package:firebase_demo/app/data/models/user.dart';
+import 'package:firebase_demo/app/presentation/screens/chat/chat_screen.dart';
 import 'package:firebase_demo/app/services/auth_service.dart';
+import 'package:firebase_demo/app/services/user_service.dart';
+import 'package:firebase_demo/app/utils/common_methods.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,17 +18,30 @@ class _HomeScreenState extends State<HomeScreen> {
   final int _total = 0;
   final int _offset = 0;
   String searchText = "";
+  List<User> users = [];
 
   @override
   void initState() {
     super.initState();
+    fetchMyUsers("", 0);
   }
 
-  void fetchMyUsers(String searchText, int offset) {}
+  void fetchMyUsers(String searchText, int offset) {
+    UserService(context).getUsers(offset).then((value) {
+      users.addAll(value);
+      setState(() {});
+    }).onError((error, stackTrace) {
+      CommonMethods.showToast(context, error.toString());
+    });
+  }
 
-  void deleteMyUser(String id) {}
+  void followUnfollowUser(String id) {}
 
-  void onItemTap(User user) {}
+  void onItemTap(User user) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) {
+      return ChatScreen(user: user);
+    }));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
         appBar: AppBar(actions: <Widget>[
           IconButton(
             icon: const Icon(
-              Icons.add,
+              Icons.favorite,
             ),
             onPressed: () {},
           ),
@@ -55,11 +71,12 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               flex: 1,
               child: HomeList(
+                  users: users,
                   searchText: searchText,
                   offset: _offset,
                   total: _total,
                   isLoading: _isLoading,
-                  deleteMyUser: deleteMyUser,
+                  followUnfollowUser: followUnfollowUser,
                   onItemTap: onItemTap,
                   fetchMyUsers: fetchMyUsers),
             )
@@ -100,22 +117,24 @@ class _SearchInputState extends State<SearchInput> {
 class HomeList extends StatefulWidget {
   const HomeList({
     super.key,
+    required this.users,
     required this.isLoading,
     required this.total,
     required this.offset,
     required this.onItemTap,
-    required this.deleteMyUser,
+    required this.followUnfollowUser,
     required this.fetchMyUsers,
     required this.searchText,
   });
 
-  final Function deleteMyUser;
+  final Function followUnfollowUser;
   final Function onItemTap;
   final Function fetchMyUsers;
   final bool isLoading;
   final int total;
   final int offset;
   final String searchText;
+  final List<User> users;
 
   @override
   State<HomeList> createState() => _HomeListState();
@@ -145,24 +164,23 @@ class _HomeListState extends State<HomeList> {
 
   @override
   Widget build(BuildContext context) {
-    List<User> usersList = [];
-
     return RefreshIndicator(
       color: Colors.white,
-      backgroundColor: Colors.amber,
+      backgroundColor: Colors.deepPurple,
       strokeWidth: 2.0,
       onRefresh: () async {
         return;
       },
       child: ListView.builder(
         controller: scrollController,
-        itemCount: usersList.length,
+        itemCount: widget.users.length,
         itemBuilder: (context, index) {
           return HomeListItem(
-              user: usersList[index],
+              user: widget.users[index],
               index: index,
-              onItemTap: () => widget.onItemTap(usersList[index]),
-              onDeleteTap: () => widget.deleteMyUser(usersList[index].uid));
+              onItemTap: () => widget.onItemTap(widget.users[index]),
+              onFollowUnfollowTap: () =>
+                  widget.followUnfollowUser(widget.users[index].uid));
         },
       ),
     );
@@ -174,12 +192,12 @@ class HomeListItem extends StatelessWidget {
       {super.key,
       required this.user,
       required this.index,
-      required this.onDeleteTap,
+      required this.onFollowUnfollowTap,
       required this.onItemTap});
 
   final User user;
   final int index;
-  final Function onDeleteTap;
+  final Function onFollowUnfollowTap;
   final Function onItemTap;
 
   @override
@@ -212,11 +230,18 @@ class HomeListItem extends StatelessWidget {
                 )
               ],
             ),
-            InkWell(
-              onTap: () => {onDeleteTap()},
-              child: const Icon(
-                Icons.delete,
-                size: 24,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                color: Colors.deepPurple,
+              ),
+              child: InkWell(
+                onTap: () => {onFollowUnfollowTap()},
+                child: const Text(
+                  StringConfig.followText,
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ),
           ],

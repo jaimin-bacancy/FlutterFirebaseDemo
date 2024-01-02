@@ -19,6 +19,11 @@ abstract class StringConfig {
   //Users Screen
   static const String usersText = 'Users';
   static const String searchUserText = "Search user...";
+  static const String followText = "Follow";
+  static const String unfollowText = "Unfollow";
+
+  //Chat Screen
+  static const String chatText = "Chat";
 
   // Field validations
   static const String fieldCannotBeEmpty = 'This field cann\'t be empty';
