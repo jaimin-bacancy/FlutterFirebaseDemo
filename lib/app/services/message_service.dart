@@ -3,10 +3,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:firebase_demo/app/base_config/configs/firebase_config.dart';
-import 'package:firebase_demo/app/data/models/user.dart';
-import 'package:firebase_demo/app/utils/common_methods.dart';
 import 'package:flutter/material.dart';
 
 class MessageService {
@@ -16,39 +13,56 @@ class MessageService {
 
   MessageService(this.context);
 
-  Future<List<ChatMessage>> getMessages(int offset) async {
-    int limit = 20;
-    List<User> listData = [];
-    try {
-      Query<Map<String, dynamic>> first =
-          _db.collection(FirebaseConfig.db_users).orderBy("name").limit(limit);
+  Stream getMessagesStream(String conversationId) {
+    return FirebaseFirestore.instance
+        .collection(FirebaseConfig.db_conversations)
+        .doc(conversationId)
+        .collection(FirebaseConfig.db_chat)
+        .orderBy(FirebaseConfig.field_createdAt, descending: true)
+        .snapshots();
+  }
 
-      QuerySnapshot<Map<String, dynamic>> documentSnapshots = await first.get();
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> data =
-          documentSnapshots.docs;
+  void saveMessage(String conversationID, String text, int from) async {
+    await _db
+        .collection(FirebaseConfig.db_conversations)
+        .doc(conversationID)
+        .collection(FirebaseConfig.db_chat)
+        .add({
+      FirebaseConfig.field_from: from,
+      FirebaseConfig.field_text: text,
+      FirebaseConfig.field_createdAt: FieldValue.serverTimestamp(),
+      FirebaseConfig.field_markAsRead: false,
+    });
+  }
 
-      for (var element in data) {
-        User newUser = User.fromJson(element.data());
-        listData.add(newUser);
+  void setMarkAsRead(String conversationID, int from, callback) async {
+    await _db
+        .collection(FirebaseConfig.db_conversations)
+        .doc(conversationID)
+        .collection(FirebaseConfig.db_chat)
+        .where(FirebaseConfig.field_markAsRead, isNotEqualTo: true)
+        .where(FirebaseConfig.field_from, isEqualTo: from)
+        .get()
+        .then((value) {
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+      for (var doc in value.docs) {
+        final documentBody = <String, dynamic>{
+          FirebaseConfig.field_markAsRead: true,
+        };
+
+        final docRef = FirebaseFirestore.instance
+            .collection(FirebaseConfig.db_conversations)
+            .doc(conversationID)
+            .collection(FirebaseConfig.db_chat)
+            .doc(doc.id);
+        batch.update(docRef, documentBody);
       }
 
-      return listData;
-
-      // Get the last visible document
-      DocumentSnapshot lastVisible =
-          documentSnapshots.docs[documentSnapshots.size - 1];
-
-      // // Construct a new query starting at this document,
-      // // get the next users.
-      Query<Map<String, dynamic>> next = _db
-          .collection(FirebaseConfig.db_users)
-          .orderBy("name")
-          .startAfterDocument(lastVisible)
-          .limit(limit);
-    } catch (e) {
-      CommonMethods.showToast(context, e.toString());
-
-      throw Exception(e);
-    }
+      batch.commit().then((value) {
+        if (callback != null) {
+          callback();
+        }
+      });
+    });
   }
 }

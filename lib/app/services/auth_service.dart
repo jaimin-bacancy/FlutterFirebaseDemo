@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_demo/app/base_config/configs/firebase_config.dart';
 import 'package:firebase_demo/app/base_config/configs/string_config.dart';
 import 'package:firebase_demo/app/presentation/screens/home/home_screen.dart';
 import 'package:firebase_demo/app/services/user_service.dart';
@@ -46,7 +47,8 @@ class AuthService {
       User? user = userCredential.user;
 
       if (user != null) {
-        UserService(context).checkAlreadyExist(user.uid).then((ifExist) {
+        CommonMethods.checkAlreadyExist(FirebaseConfig.db_users, user.uid)
+            .then((ifExist) {
           if (ifExist) {
             CommonMethods.resetToStartUp(context);
           } else {

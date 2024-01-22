@@ -19,11 +19,14 @@ abstract class StringConfig {
   //Users Screen
   static const String usersText = 'Users';
   static const String searchUserText = "Search user...";
-  static const String followText = "Follow";
-  static const String unfollowText = "Unfollow";
+  static const String sentText = "Sent";
+  static const String agoText = "ago";
 
   //Chat Screen
   static const String chatText = "Chat";
+
+  //Follow Request Screen
+  static const String followRequestsText = "Follow Requests";
 
   // Field validations
   static const String fieldCannotBeEmpty = 'This field cann\'t be empty';
@@ -49,4 +52,5 @@ abstract class StringConfig {
 
   // Common
   static const String ORText = 'OR';
+  static const String youText = 'You';
 }
