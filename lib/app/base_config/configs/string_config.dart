@@ -24,6 +24,7 @@ abstract class StringConfig {
 
   //Chat Screen
   static const String chatText = "Chat";
+  static const String chatsText = "Chats";
 
   //Follow Request Screen
   static const String followRequestsText = "Follow Requests";

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_demo/app/base_config/configs/firebase_config.dart';
 import 'package:firebase_demo/app/base_config/configs/string_config.dart';
 import 'package:firebase_demo/app/data/models/conversation.dart';
+import 'package:firebase_demo/app/data/models/follow_request.dart';
 import 'package:firebase_demo/app/data/models/user.dart';
 import 'package:firebase_demo/app/presentation/screens/chat/chat_screen.dart';
 import 'package:firebase_demo/app/presentation/screens/follow_requests/follow_requests_screen.dart';
@@ -119,36 +120,38 @@ class _HomeScreenState extends State<HomeScreen> {
                   .limit(1)
                   .get();
 
-              Map<String, dynamic> newData =
-                  qs.docs[0].data() as Map<String, dynamic>;
+              if (qs.docs.isNotEmpty) {
+                Map<String, dynamic> newData =
+                    qs.docs[0].data() as Map<String, dynamic>;
 
-              String lastMessage = "";
-              bool markAsRead = newData[FirebaseConfig.field_markAsRead];
-              bool isReceiver = false;
-              String receiverId = "";
-              if (newData[FirebaseConfig.field_from] == 1) {
-                DateTime startTime =
-                    newData[FirebaseConfig.field_createdAt]?.toDate();
+                String lastMessage = "";
+                bool markAsRead = newData[FirebaseConfig.field_markAsRead];
+                bool isReceiver = false;
+                String receiverId = "";
+                if (newData[FirebaseConfig.field_from] == 1) {
+                  DateTime startTime =
+                      newData[FirebaseConfig.field_createdAt]?.toDate();
 
-                lastMessage = CommonMethods.getLookupMessage(
-                    startTime, StringConfig.sentText, StringConfig.agoText);
-                receiverId = user.uid;
-              } else {
-                lastMessage = newData[FirebaseConfig.field_text];
-                isReceiver = true;
-                receiverId = user.uid;
+                  lastMessage = CommonMethods.getLookupMessage(
+                      startTime, StringConfig.sentText, StringConfig.agoText);
+                  receiverId = user.uid;
+                } else {
+                  lastMessage = newData[FirebaseConfig.field_text];
+                  isReceiver = true;
+                  receiverId = user.uid;
+                }
+
+                Conversation conversation = Conversation(
+                    name: user.name,
+                    id: document.id,
+                    lastMessage: lastMessage,
+                    markAsRead: markAsRead,
+                    isReceiver: isReceiver,
+                    receiverId: receiverId);
+
+                users.add(conversation);
+                setState(() {});
               }
-
-              Conversation conversation = Conversation(
-                  name: user.name,
-                  id: document.id,
-                  lastMessage: lastMessage,
-                  markAsRead: markAsRead,
-                  isReceiver: isReceiver,
-                  receiverId: receiverId);
-
-              users.add(conversation);
-              setState(() {});
             }
           });
         });
@@ -169,64 +172,83 @@ class _HomeScreenState extends State<HomeScreen> {
     UserService(context).sendFollowRequest(id, name);
   }
 
-  void onItemTap(Conversation conversation, String currentUserID) {
+  void onItemTap(Conversation conversation, String currentUserID,
+      FollowRequest followRequest) {
     String cId = conversation.id;
     int from = 0;
     if (currentUserID == cId.split("#").last) {
       from = 1;
     }
-    MessageService(context).setMarkAsRead(
-        conversation.id, from, () => navigateToChat(conversation));
+    MessageService(context).setMarkAsRead(conversation.id, from,
+        () => navigateToChat(conversation, followRequest));
   }
 
-  void navigateToChat(Conversation conversation) {
+  void navigateToChat(Conversation conversation, FollowRequest followRequest) {
     setState(() {});
     Navigator.push(context, MaterialPageRoute(builder: (context) {
-      return ChatScreen(conversation: conversation);
+      return ChatScreen(
+        conversation: conversation,
+        requested: false,
+        followRequest: followRequest,
+      );
     }));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(actions: <Widget>[
-          IconButton(
-            icon: const Icon(
-              Icons.favorite,
-            ),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) {
-                return const FollowRequestsScreen();
-              }));
-            },
+      appBar: AppBar(actions: <Widget>[
+        IconButton(
+          icon: const Icon(
+            Icons.favorite,
           ),
-          IconButton(
-            icon: const Icon(
-              Icons.logout,
-            ),
-            onPressed: () {
-              AuthService(context).logout();
-            },
+          onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) {
+              return const FollowRequestsScreen();
+            }));
+          },
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.logout,
+          ),
+          onPressed: () {
+            AuthService(context).logout();
+          },
+        )
+      ], title: const Text(StringConfig.chatsText)),
+      body: Column(
+        children: [
+          SearchInput(
+            fetchMyUsers: fetchMyUsers,
+            searchText: searchText,
+          ),
+          Expanded(
+            flex: 1,
+            child: HomeList(
+                users: users,
+                isLoading: _isLoading,
+                onItemTap: onItemTap,
+                searchText: searchText,
+                fetchMyUsers: fetchMyUsers,
+                currentUserID: currentUserID),
           )
-        ], title: const Text(StringConfig.usersText)),
-        body: Column(
-          children: [
-            SearchInput(
-              fetchMyUsers: fetchMyUsers,
-              searchText: searchText,
-            ),
-            Expanded(
-              flex: 1,
-              child: HomeList(
-                  users: users,
-                  isLoading: _isLoading,
-                  onItemTap: onItemTap,
-                  searchText: searchText,
-                  fetchMyUsers: fetchMyUsers,
-                  currentUserID: currentUserID),
-            )
-          ],
-        ));
+        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.deepPurple,
+        onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) {
+            return const FollowRequestsScreen();
+          }));
+        },
+        child: const Icon(
+          Icons.chat,
+          color: Colors.white,
+        ),
+      ),
+    );
   }
 }
 

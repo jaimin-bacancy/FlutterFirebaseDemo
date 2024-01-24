@@ -17,4 +17,6 @@ abstract class FirebaseConfig {
   static const String field_isApproved = 'isApproved';
   static const String field_user1 = 'user1';
   static const String field_user2 = 'user2';
+  static const String field_requestAccepted = 'requestAccepted';
+  static const String field_requestedBy = 'requestedBy';
 }

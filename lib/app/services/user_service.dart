@@ -54,22 +54,58 @@ class UserService {
     });
   }
 
-  Future<void> approveFollowRequest(String followerId) async {
-    String? currentUserID = await AuthService(context).getCurrentUID();
+  Future<String> createChatConversion(
+      String currentID, String receiverId) async {
+    String c1 = "$currentID#$receiverId";
+    String c2 = "$receiverId#$currentID";
+    CollectionReference conversations =
+        FirebaseFirestore.instance.collection(FirebaseConfig.db_conversations);
+
+    final snapshot = await conversations.doc(c1).get();
+    String conversationID = c1;
+    if (snapshot.exists) {
+      conversationID = c1;
+    } else {
+      final snapshot = await conversations.doc(c2).get();
+      if (snapshot.exists) {
+        conversationID = c2;
+      }
+    }
+
+    String user1 = conversationID.split("#").first;
+    String user2 = conversationID.split("#").last;
+
+    DocumentReference dRefUser1 =
+        FirebaseFirestore.instance.doc("/users/$user1");
+    DocumentReference dRefUser2 =
+        FirebaseFirestore.instance.doc("/users/$user2");
+
+    final user = <String, dynamic>{
+      FirebaseConfig.field_user1: dRefUser1,
+      FirebaseConfig.field_user2: dRefUser2,
+    };
 
     await _db
-        .collection(FirebaseConfig.db_users)
-        .doc(currentUserID)
-        .collection(FirebaseConfig.db_followers)
-        .doc(followerId)
-        .update({FirebaseConfig.field_isApproved: true});
+        .collection(FirebaseConfig.db_conversations)
+        .doc(conversationID)
+        .update(user);
+
+    return conversationID;
+  }
+
+  Future<void> inviteForChat(String currentID, String conversationID) async {
+    DocumentReference dRefRequestedBy =
+        FirebaseFirestore.instance.doc("/users/$currentID");
+
+    final user = <String, dynamic>{
+      FirebaseConfig.field_requestedBy: dRefRequestedBy,
+      FirebaseConfig.field_requestAccepted: false,
+    };
 
     await _db
-        .collection(FirebaseConfig.db_users)
-        .doc(followerId)
-        .collection(FirebaseConfig.db_following)
-        .doc(currentUserID)
-        .set({});
+        .collection(FirebaseConfig.db_conversations)
+        .doc(conversationID)
+        .update(user);
   }
 
   void updateUser() async {}

@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_demo/app/base_config/configs/firebase_config.dart';
 import 'package:firebase_demo/app/base_config/configs/string_config.dart';
+import 'package:firebase_demo/app/data/models/conversation.dart';
 import 'package:firebase_demo/app/data/models/follow_request.dart';
 import 'package:firebase_demo/app/data/models/user.dart';
+import 'package:firebase_demo/app/presentation/screens/chat/chat_screen.dart';
 import 'package:firebase_demo/app/services/auth_service.dart';
 import 'package:firebase_demo/app/services/user_service.dart';
 import 'package:flutter/material.dart';
@@ -18,59 +22,6 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
   final bool _isLoading = false;
   List<User> users = [];
   String? currentUserID;
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  void followUnfollowUser(String id, String name) {
-    UserService(context).sendFollowRequest(id, name);
-  }
-
-  void onItemTap(User user) {}
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(title: const Text(StringConfig.followRequestsText)),
-        body: Column(
-          children: [
-            Expanded(
-              flex: 1,
-              child: HomeList(
-                  users: users,
-                  isLoading: _isLoading,
-                  followUnfollowUser: followUnfollowUser,
-                  onItemTap: onItemTap,
-                  currentUserID: currentUserID),
-            )
-          ],
-        ));
-  }
-}
-
-class HomeList extends StatefulWidget {
-  HomeList(
-      {super.key,
-      required this.users,
-      required this.isLoading,
-      required this.onItemTap,
-      required this.followUnfollowUser,
-      required this.currentUserID});
-
-  final Function followUnfollowUser;
-  final Function onItemTap;
-  final bool isLoading;
-  final List<User> users;
-  String? currentUserID = "";
-
-  @override
-  State<HomeList> createState() => _HomeListState();
-}
-
-class _HomeListState extends State<HomeList> {
-  ScrollController scrollController = ScrollController();
   Stream? stream;
 
   @override
@@ -84,23 +35,68 @@ class _HomeListState extends State<HomeList> {
     String? currentID = await AuthService(context).getCurrentUID();
 
     setState(() {
-      widget.currentUserID = currentID;
+      currentUserID = currentID;
     });
 
     if (currentID != null) {
       stream = FirebaseFirestore.instance
           .collection(FirebaseConfig.db_users)
-          .doc(currentID)
-          .collection(FirebaseConfig.db_followRequests)
+          .where(FirebaseConfig.field_uid, isNotEqualTo: currentID)
           .snapshots();
     }
   }
 
-  @override
-  void dispose() {
-    scrollController.dispose();
-    super.dispose();
+  void onItemTap(
+      Conversation conversation, bool requested, FollowRequest followRequest) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) {
+      return ChatScreen(
+          conversation: conversation,
+          requested: requested,
+          followRequest: followRequest);
+    }));
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(title: const Text(StringConfig.usersText)),
+        body: Column(
+          children: [
+            Expanded(
+              flex: 1,
+              child: HomeList(
+                  users: users,
+                  stream: stream,
+                  isLoading: _isLoading,
+                  onItemTap: onItemTap,
+                  currentUserID: currentUserID),
+            )
+          ],
+        ));
+  }
+}
+
+class HomeList extends StatefulWidget {
+  HomeList(
+      {super.key,
+      required this.users,
+      required this.stream,
+      required this.isLoading,
+      required this.onItemTap,
+      required this.currentUserID});
+
+  final Function onItemTap;
+  final bool isLoading;
+  final List<User> users;
+  String? currentUserID = "";
+  Stream? stream;
+
+  @override
+  State<HomeList> createState() => _HomeListState();
+}
+
+class _HomeListState extends State<HomeList> {
+  ScrollController scrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +108,7 @@ class _HomeListState extends State<HomeList> {
         return;
       },
       child: StreamBuilder(
-          stream: stream,
+          stream: widget.stream,
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const CircularProgressIndicator();
@@ -124,15 +120,54 @@ class _HomeListState extends State<HomeList> {
               controller: scrollController,
               itemCount: users.length,
               itemBuilder: (context, index) {
-                FollowRequest newUser =
-                    FollowRequest.fromJson(users[index].data());
+                User newUser = User.fromJson(users[index].data());
 
-                return HomeListItem(
-                    followRequest: newUser,
+                return UserListItem(
+                    user: newUser,
                     index: index,
-                    isApproved: newUser.isApproved,
-                    onItemTap: () => widget.onItemTap(newUser),
-                    onFollowUnfollowTap: () => widget.followUnfollowUser());
+                    isApproved: false,
+                    onItemTap: () async {
+                      String conversationId = await UserService(context)
+                          .createChatConversion(
+                              widget.currentUserID!, newUser.uid);
+
+                      DocumentSnapshot documentSnapshot =
+                          await FirebaseFirestore.instance
+                              .collection(FirebaseConfig.db_conversations)
+                              .doc(conversationId)
+                              .get();
+
+                      Map<String, dynamic> newData =
+                          documentSnapshot.data() as Map<String, dynamic>;
+                      bool requested = false;
+                      bool requestAccepted = false;
+                      DocumentReference? requestedBy;
+                      if (newData
+                          .containsKey(FirebaseConfig.field_requestAccepted)) {
+                        requested = true;
+                        requestAccepted =
+                            newData[FirebaseConfig.field_requestAccepted];
+                        requestedBy = newData[FirebaseConfig.field_requestedBy];
+                      } else {
+                        requested = false;
+                      }
+
+                      Conversation conversation = Conversation(
+                          name: newUser.name,
+                          id: conversationId,
+                          receiverId: newUser.uid,
+                          lastMessage: "",
+                          markAsRead: false,
+                          isReceiver: true);
+
+                      FollowRequest followRequest = FollowRequest(
+                          user1: newData[FirebaseConfig.field_user1],
+                          user2: newData[FirebaseConfig.field_user2],
+                          requestedBy: requestedBy,
+                          requestAccepted: requestAccepted);
+
+                      widget.onItemTap(conversation, requested, followRequest);
+                    });
               },
             );
           }),
@@ -140,18 +175,16 @@ class _HomeListState extends State<HomeList> {
   }
 }
 
-class HomeListItem extends StatelessWidget {
-  const HomeListItem(
+class UserListItem extends StatelessWidget {
+  const UserListItem(
       {super.key,
-      required this.followRequest,
+      required this.user,
       required this.index,
-      required this.onFollowUnfollowTap,
       required this.isApproved,
       required this.onItemTap});
 
-  final FollowRequest followRequest;
+  final User user;
   final int index;
-  final Function onFollowUnfollowTap;
   final Function onItemTap;
   final bool isApproved;
 
@@ -174,10 +207,13 @@ class HomeListItem extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(followRequest.name,
+                    Text(user.name,
                         maxLines: 1,
                         style: const TextStyle(
                             color: Colors.black, fontWeight: FontWeight.bold)),
+                    Text(user.email,
+                        maxLines: 1,
+                        style: const TextStyle(color: Colors.black))
                   ],
                 )
               ],
